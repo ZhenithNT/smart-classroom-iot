@@ -37,6 +37,9 @@ export default function App() {
   // Trạng thái các thiết bị (Đèn, Quạt)
   const [devices, setDevices] = useState(INITIAL_DEVICES)
 
+  // Trạng thái thiết bị đang chờ phản hồi (pending)
+  const [pendingDevices, setPendingDevices] = useState({})
+
   // Trạng thái cảm biến thời gian thực
   const [sensorRealtime, setSensorRealtime] = useState(INITIAL_SENSOR_REALTIME)
 
@@ -81,36 +84,60 @@ export default function App() {
     return () => clearInterval(timer)
   }, [])
 
-  // Xử lý bật/tắt thiết bị
+  // Xử lý bật/tắt thiết bị có độ trễ mô phỏng phản hồi IoT / MQTT
   const toggleDevice = (deviceId) => {
+    // Nếu thiết bị này đang xử lý lệnh thì không cho bấm trùng lặp
+    if (pendingDevices[deviceId]) return
+
+    const dev = devices.find((d) => d.id === deviceId)
+    if (!dev) return
+
     const now = new Date()
     const sendTime = formatDateTime(now)
-    const respTime = formatDateTime(new Date(now.getTime() + 1500))
+    const targetAction = dev.status ? 'Tắt' : 'Bật'
+    const newActionId = actionHistoryList.length + 1
 
-    setDevices((prev) =>
-      prev.map((dev) => {
-        if (dev.id === deviceId) {
-          const nextStatus = !dev.status
-          const actionText = nextStatus ? 'Bật' : 'Tắt'
+    // 1. Đặt trạng thái đang xử lý (Pending)
+    setPendingDevices((prev) => ({ ...prev, [deviceId]: true }))
 
-          // Tự động ghi lại lịch sử vào trang History Action
-          setActionHistoryList((history) => [
-            {
-              id: history.length + 1,
-              device: dev.name,
-              action: actionText,
-              status: 'Thành công',
-              sendTime,
-              respTime,
-            },
-            ...history,
-          ])
+    // 2. Ghi bản ghi vào Lịch sử điều khiển với trạng thái "Đang xử lý", thời gian phản hồi: "Đang chờ"
+    setActionHistoryList((history) => [
+      {
+        id: newActionId,
+        device: dev.name,
+        action: targetAction,
+        status: 'Đang xử lý',
+        sendTime,
+        respTime: 'Đang chờ',
+      },
+      ...history,
+    ])
 
-          return { ...dev, status: nextStatus }
-        }
-        return dev
+    // 3. Sau khoảng trễ 1.2s (mô phỏng gửi MQTT đến ESP32 và nhận kết quả phản hồi)
+    setTimeout(() => {
+      const respTime = formatDateTime(new Date())
+
+      // Cập nhật trạng thái mới cho thiết bị
+      setDevices((prev) =>
+        prev.map((d) => (d.id === deviceId ? { ...d, status: !d.status } : d))
+      )
+
+      // Cập nhật bản ghi trong History Action thành "Thành công" và có thời gian phản hồi
+      setActionHistoryList((history) =>
+        history.map((item) =>
+          item.id === newActionId
+            ? { ...item, status: 'Thành công', respTime }
+            : item
+        )
+      )
+
+      // Kết thúc trạng thái đang xử lý
+      setPendingDevices((prev) => {
+        const next = { ...prev }
+        delete next[deviceId]
+        return next
       })
-    )
+    }, 1200)
   }
 
   return (
@@ -126,6 +153,7 @@ export default function App() {
             chartDataPoints={chartDataPoints}
             devices={devices}
             toggleDevice={toggleDevice}
+            pendingDevices={pendingDevices}
           />
         )}
         {currentTab === 'sensor' && (

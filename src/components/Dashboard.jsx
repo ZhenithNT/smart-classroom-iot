@@ -28,6 +28,7 @@ export default function Dashboard({
   chartDataPoints,
   devices,
   toggleDevice,
+  pendingDevices = {},
 }) {
   // Cấu hình dữ liệu biểu đồ
   const chartData = {
@@ -200,25 +201,44 @@ export default function Dashboard({
           <div className="control-title">Điều khiển thiết bị</div>
           <div className="device-list">
             {devices.map((dev) => {
-              const DevIcon = dev.id === 1 ? IconBulb : IconFan
+              const isBulb = dev.id === 1
+              const isPending = !!pendingDevices[dev.id]
+              const DevIcon = isBulb ? IconBulb : IconFan
+              const boxClass = isBulb
+                ? dev.status
+                  ? 'device-icon-box bulb-on'
+                  : 'device-icon-box bulb-off'
+                : dev.status
+                ? 'device-icon-box fan-on'
+                : 'device-icon-box fan-off'
+
               return (
                 <div key={dev.id} className="device-item">
                   <div className="device-left">
-                    <div className="device-icon-box">
-                      <DevIcon />
+                    <div className={boxClass}>
+                      <DevIcon on={dev.status} />
                     </div>
                     <div className="device-meta">
                       <span className="device-name">{dev.name}</span>
-                      <span className="device-status">
-                        {dev.status ? 'Đang bật' : 'Đang tắt'}
+                      <span
+                        className={`device-status ${
+                          isPending ? 'status-processing' : ''
+                        }`}
+                      >
+                        {isPending
+                          ? 'Đang xử lý…'
+                          : dev.status
+                          ? 'Đang bật'
+                          : 'Đang tắt'}
                       </span>
                     </div>
                   </div>
 
-                  <label className="switch">
+                  <label className={`switch ${isPending ? 'disabled' : ''}`}>
                     <input
                       type="checkbox"
                       checked={dev.status}
+                      disabled={isPending}
                       onChange={() => toggleDevice(dev.id)}
                     />
                     <span className="slider round"></span>
