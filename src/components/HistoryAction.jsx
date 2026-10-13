@@ -99,7 +99,6 @@ export default function HistoryAction({ actionHistoryList }) {
             <option value="Tất cả">Tất cả</option>
             <option value="Đèn">Đèn</option>
             <option value="Quạt">Quạt</option>
-            <option value="Điều hòa">Điều hòa</option>
           </select>
         </div>
 

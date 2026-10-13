@@ -62,25 +62,25 @@ export const MOCK_SENSOR_DATA = [
   }),
 ]
 
-// 30 bản ghi lịch sử điều khiển khớp chuẩn PDF
+// 30 bản ghi lịch sử điều khiển khớp chuẩn
 export const MOCK_ACTION_HISTORY = [
   { id: 1, device: 'Đèn', action: 'Bật', status: 'Thành công', sendTime: '16/08/2026 08:30:15', respTime: '16/08/2026 08:30:18' },
   { id: 2, device: 'Quạt', action: 'Tắt', status: 'Thành công', sendTime: '16/08/2026 09:15:42', respTime: '16/08/2026 09:15:45' },
-  { id: 3, device: 'Điều hòa', action: 'Bật', status: 'Đang xử lý', sendTime: '16/08/2026 10:02:10', respTime: 'Đang chờ' },
+  { id: 3, device: 'Đèn', action: 'Bật', status: 'Đang xử lý', sendTime: '16/08/2026 10:02:10', respTime: 'Đang chờ' },
   { id: 4, device: 'Đèn', action: 'Tắt', status: 'Thất bại', sendTime: '16/08/2026 11:45:03', respTime: '16/08/2026 11:45:05' },
   { id: 5, device: 'Quạt', action: 'Bật', status: 'Thành công', sendTime: '16/08/2026 12:10:22', respTime: '16/08/2026 12:10:24' },
-  { id: 6, device: 'Điều hòa', action: 'Tắt', status: 'Thất bại', sendTime: '16/08/2026 13:20:55', respTime: '16/08/2026 13:21:25' },
+  { id: 6, device: 'Quạt', action: 'Tắt', status: 'Thất bại', sendTime: '16/08/2026 13:20:55', respTime: '16/08/2026 13:21:25' },
   { id: 7, device: 'Đèn', action: 'Bật', status: 'Đang xử lý', sendTime: '16/08/2026 14:05:11', respTime: 'Đang chờ' },
   { id: 8, device: 'Quạt', action: 'Tắt', status: 'Thất bại', sendTime: '16/08/2026 15:30:40', respTime: '16/08/2026 15:30:42' },
-  { id: 9, device: 'Điều hòa', action: 'Bật', status: 'Thành công', sendTime: '16/08/2026 16:15:07', respTime: '16/08/2026 16:15:10' },
+  { id: 9, device: 'Đèn', action: 'Bật', status: 'Thành công', sendTime: '16/08/2026 16:15:07', respTime: '16/08/2026 16:15:10' },
   { id: 10, device: 'Đèn', action: 'Tắt', status: 'Thất bại', sendTime: '16/08/2026 17:00:33', respTime: '16/08/2026 17:00:38' },
   // Tạo tiếp từ ID 11 đến 30 để phân trang đủ 30 kết quả
   ...Array.from({ length: 20 }, (_, i) => {
     const idx = i + 11
-    const devs = ['Đèn', 'Quạt', 'Điều hòa']
+    const devs = ['Đèn', 'Quạt']
     const acts = ['Bật', 'Tắt']
     const stats = ['Thành công', 'Thất bại', 'Đang xử lý']
-    const d = devs[i % 3]
+    const d = devs[i % 2]
     const a = acts[i % 2]
     const s = stats[i % 3]
     const hour = String(17 + Math.floor(i / 4)).padStart(2, '0')
