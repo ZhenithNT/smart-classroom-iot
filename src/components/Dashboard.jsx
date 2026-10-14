@@ -12,7 +12,25 @@ import {
 } from 'chart.js'
 import { IconSun, IconTemp, IconHumid, IconBulb, IconFan } from './Icons'
 
-// Đăng ký các thành phần cho Chart.js
+/*
+ ============================================================================
+  GHI CHÚ DÀNH CHO LẬP TRÌNH VIÊN C / C++:
+ ----------------------------------------------------------------------------
+  1. "Props" trong Dashboard({ sensorRealtime, chartDataPoints, ... }):
+     Tương đương việc truyền một struct tham số vào hàm:
+     void RenderDashboard(const DashboardProps& props);
+  2. "Tách hàm xử lý logic (Helper Functions)":
+     Thay vì viết các toán tử ba ngôi (ternary operator ? :) lồng nhau phức tạp
+     ngay trong giao diện, ta tách thành các hàm thuần túy (pure functions)
+     sử dụng if / else rõ ràng, giống hệt hàm trong C++.
+  3. "Chart.js Config Object":
+     Là một cấu trúc dữ liệu phân cấp (struct lồng nhau) mô tả cách thư viện đồ họa
+     vẽ các điểm ảnh (canvas rendering), thiết lập 2 trục Y độc lập (trục trái cho °C/%
+     và trục phải cho Lux).
+ ============================================================================
+*/
+
+// Đăng ký các module vẽ đồ thị với thư viện Chart.js
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -23,6 +41,57 @@ ChartJS.register(
   Legend
 )
 
+// ==========================================
+// CÁC HÀM PHỤ TRỢ (HELPER FUNCTIONS)
+// ==========================================
+
+/**
+ * Xác định lớp CSS cho khung icon của thiết bị
+ * @param {object} device Đối tượng thiết bị (id, name, status)
+ * @returns {string} Tên lớp CSS tương ứng
+ */
+function getDeviceBoxClass(device) {
+  const isBulb = (device.id === 1) // id = 1 là Đèn, id = 2 là Quạt
+
+  if (isBulb) {
+    if (device.status === true) {
+      return 'device-icon-box bulb-on' // Đèn bật: phát sáng vàng
+    } else {
+      return 'device-icon-box bulb-off' // Đèn tắt: xám
+    }
+  } else {
+    // Là thiết bị Quạt
+    if (device.status === true) {
+      return 'device-icon-box fan-on' // Quạt bật: xanh dương + quay tròn
+    } else {
+      return 'device-icon-box fan-off' // Quạt tắt: đứng yên
+    }
+  }
+}
+
+/**
+ * Xác định chuỗi văn bản trạng thái hiển thị của thiết bị
+ * @param {object} device Đối tượng thiết bị
+ * @param {boolean} isPending Cờ báo thiết bị có đang chờ phản hồi mạng hay không
+ * @returns {string} Nhãn hiển thị ('Đang xử lý…' | 'Đang bật' | 'Đang tắt')
+ */
+function getDeviceStatusText(device, isPending) {
+  // Ưu tiên 1: Đang trong quá trình trễ 1.2s chờ phản hồi
+  if (isPending === true) {
+    return 'Đang xử lý…'
+  }
+
+  // Ưu tiên 2: Trạng thái hiện tại của thiết bị
+  if (device.status === true) {
+    return 'Đang bật'
+  } else {
+    return 'Đang tắt'
+  }
+}
+
+// ==========================================
+// THÀNH PHẦN DASHBOARD (DASHBOARD COMPONENT)
+// ==========================================
 export default function Dashboard({
   sensorRealtime,
   chartDataPoints,
@@ -30,16 +99,34 @@ export default function Dashboard({
   toggleDevice,
   pendingDevices = {},
 }) {
-  // Cấu hình dữ liệu biểu đồ
+  // --------------------------------------------------------------------------
+  // BƯỚC 1: TRÍCH XUẤT DỮ LIỆU ĐỒ THỊ (Tương đương duyệt mảng vector trong C++)
+  // --------------------------------------------------------------------------
+  const labelsList = []
+  const lightDataList = []
+  const tempDataList = []
+  const humidDataList = []
+
+  for (let i = 0; i < chartDataPoints.length; i++) {
+    const point = chartDataPoints[i]
+    labelsList.push(point.time)
+    lightDataList.push(point.light)
+    tempDataList.push(point.temp)
+    humidDataList.push(point.humid)
+  }
+
+  // --------------------------------------------------------------------------
+  // BƯỚC 2: CẤU HÌNH DỮ LIỆU VẼ ĐỒ THỊ (3 đường: Ánh sáng, Nhiệt độ, Độ ẩm)
+  // --------------------------------------------------------------------------
   const chartData = {
-    labels: chartDataPoints.map((p) => p.time),
+    labels: labelsList,
     datasets: [
       {
         label: 'Ánh sáng',
-        data: chartDataPoints.map((p) => p.light),
+        data: lightDataList,
         borderColor: '#F59E0B',
         backgroundColor: '#F59E0B',
-        yAxisID: 'yLux',
+        yAxisID: 'yLux', // Gắn vào trục Y bên phải (đơn vị lux, 0 - 1200)
         tension: 0.35,
         borderWidth: 2,
         pointRadius: 3,
@@ -47,10 +134,10 @@ export default function Dashboard({
       },
       {
         label: 'Nhiệt độ',
-        data: chartDataPoints.map((p) => p.temp),
+        data: tempDataList,
         borderColor: '#EF4444',
         backgroundColor: '#EF4444',
-        yAxisID: 'yTempHumid',
+        yAxisID: 'yTempHumid', // Gắn vào trục Y bên trái (đơn vị °C / %, 0 - 100)
         tension: 0.35,
         borderWidth: 2,
         pointRadius: 3,
@@ -58,10 +145,10 @@ export default function Dashboard({
       },
       {
         label: 'Độ ẩm',
-        data: chartDataPoints.map((p) => p.humid),
+        data: humidDataList,
         borderColor: '#3B82F6',
         backgroundColor: '#3B82F6',
-        yAxisID: 'yTempHumid',
+        yAxisID: 'yTempHumid', // Dùng chung trục Y bên trái với Nhiệt độ
         tension: 0.35,
         borderWidth: 2,
         pointRadius: 3,
@@ -70,13 +157,15 @@ export default function Dashboard({
     ],
   }
 
-  // Tùy chọn biểu đồ 2 trục Y giống thiết kế
+  // --------------------------------------------------------------------------
+  // BƯỚC 3: CẤU HÌNH TÙY CHỌN ĐỒ THỊ (Đồ thị 2 trục Y theo yêu cầu báo cáo)
+  // --------------------------------------------------------------------------
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
-        display: false, // Dùng legend tùy biến phía trên giống PDF
+        display: false, // Ẩn legend mặc định vì đã có thanh legend tùy biến phía trên
       },
       tooltip: {
         mode: 'index',
@@ -84,6 +173,7 @@ export default function Dashboard({
       },
     },
     scales: {
+      // Trục hoành X: Thời gian đo (HH:mm:ss)
       x: {
         grid: {
           color: '#F3F4F6',
@@ -93,6 +183,7 @@ export default function Dashboard({
           font: { size: 12 },
         },
       },
+      // Trục tung Y bên trái: Dành cho Nhiệt độ (°C) và Độ ẩm (%)
       yTempHumid: {
         type: 'linear',
         position: 'left',
@@ -113,6 +204,7 @@ export default function Dashboard({
           font: { size: 12 },
         },
       },
+      // Trục tung Y bên phải: Dành cho Ánh sáng (lux)
       yLux: {
         type: 'linear',
         position: 'right',
@@ -125,7 +217,7 @@ export default function Dashboard({
           font: { size: 12.5, weight: 600 },
         },
         grid: {
-          drawOnChartArea: false,
+          drawOnChartArea: false, // Tránh vẽ đè lưới lên trục bên trái
         },
         ticks: {
           color: '#6B7280',
@@ -136,8 +228,12 @@ export default function Dashboard({
     },
   }
 
+  // --------------------------------------------------------------------------
+  // BƯỚC 4: RENDER GIAO DIỆN HTML/JSX
+  // --------------------------------------------------------------------------
   return (
     <div className="page-content">
+      {/* Tiêu đề trang */}
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Gửi dữ liệu mỗi 2 giây</p>
@@ -145,7 +241,7 @@ export default function Dashboard({
 
       {/* Hàng 4 Card: 3 Cảm biến + 1 Bảng điều khiển thiết bị */}
       <div className="dashboard-grid">
-        {/* Card Ánh sáng */}
+        {/* Card 1: Ánh sáng */}
         <div className="metric-card">
           <div className="metric-header">
             <div className="metric-title-group">
@@ -162,7 +258,7 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Card Nhiệt độ */}
+        {/* Card 2: Nhiệt độ */}
         <div className="metric-card">
           <div className="metric-header">
             <div className="metric-title-group">
@@ -179,7 +275,7 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Card Độ ẩm */}
+        {/* Card 3: Độ ẩm */}
         <div className="metric-card">
           <div className="metric-header">
             <div className="metric-title-group">
@@ -196,50 +292,53 @@ export default function Dashboard({
           </div>
         </div>
 
-        {/* Card Điều khiển thiết bị */}
+        {/* Card 4: Bảng điều khiển thiết bị (Đèn, Quạt) */}
         <div className="device-control-card">
           <div className="control-title">Điều khiển thiết bị</div>
           <div className="device-list">
-            {devices.map((dev) => {
-              const isBulb = dev.id === 1
-              const isPending = !!pendingDevices[dev.id]
+            {devices.map(function(dev) {
+              const isBulb = (dev.id === 1)
+              const isPending = Boolean(pendingDevices[dev.id])
               const DevIcon = isBulb ? IconBulb : IconFan
-              const boxClass = isBulb
-                ? dev.status
-                  ? 'device-icon-box bulb-on'
-                  : 'device-icon-box bulb-off'
-                : dev.status
-                ? 'device-icon-box fan-on'
-                : 'device-icon-box fan-off'
+              const boxClass = getDeviceBoxClass(dev)
+              const statusText = getDeviceStatusText(dev, isPending)
+
+              // Xác định lớp CSS cho nhãn trạng thái và nút gạt
+              let statusClass = 'device-status'
+              if (isPending) {
+                statusClass += ' status-processing'
+              }
+
+              let switchClass = 'switch'
+              if (isPending) {
+                switchClass += ' disabled'
+              }
 
               return (
                 <div key={dev.id} className="device-item">
                   <div className="device-left">
+                    {/* Hộp icon: phát sáng khi đèn bật, quay khi quạt bật */}
                     <div className={boxClass}>
                       <DevIcon on={dev.status} />
                     </div>
+
                     <div className="device-meta">
                       <span className="device-name">{dev.name}</span>
-                      <span
-                        className={`device-status ${
-                          isPending ? 'status-processing' : ''
-                        }`}
-                      >
-                        {isPending
-                          ? 'Đang xử lý…'
-                          : dev.status
-                          ? 'Đang bật'
-                          : 'Đang tắt'}
+                      <span className={statusClass}>
+                        {statusText}
                       </span>
                     </div>
                   </div>
 
-                  <label className={`switch ${isPending ? 'disabled' : ''}`}>
+                  {/* Nút gạt ON/OFF */}
+                  <label className={switchClass}>
                     <input
                       type="checkbox"
                       checked={dev.status}
                       disabled={isPending}
-                      onChange={() => toggleDevice(dev.id)}
+                      onChange={function() {
+                        toggleDevice(dev.id)
+                      }}
                     />
                     <span className="slider round"></span>
                   </label>
