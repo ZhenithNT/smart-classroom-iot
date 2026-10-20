@@ -44,9 +44,7 @@ export default function HistoryAction({ actionHistoryList }) {
       (device === 'Tất cả' || item.device === device) &&
       (action === 'Tất cả' || item.action === action) &&
       (status === 'Tất cả' || item.status === status) &&
-      (query === '' ||
-        item.sendTime.toLowerCase().includes(query) ||
-        item.respTime.toLowerCase().includes(query))
+      (query === '' || item.respTime.toLowerCase().includes(query))
   )
 
   const start = (page - 1) * pageSize
@@ -88,7 +86,6 @@ export default function HistoryAction({ actionHistoryList }) {
               <th>Tên thiết bị</th>
               <th>Hành động</th>
               <th>Trạng thái</th>
-              <th>Thời gian gửi</th>
               <th>Thời gian phản hồi</th>
             </tr>
           </thead>
@@ -101,13 +98,12 @@ export default function HistoryAction({ actionHistoryList }) {
                 <td>
                   <span className={'status-badge ' + STATUS_CLASS[item.status]}>{item.status}</span>
                 </td>
-                <td className="cell-time">{item.sendTime}</td>
                 <td className="cell-time">{item.respTime}</td>
               </tr>
             ))}
             {pageRows.length === 0 && (
               <tr>
-                <td colSpan="6" className="empty-cell">Không tìm thấy kết quả phù hợp</td>
+                <td colSpan="5" className="empty-cell">Không tìm thấy kết quả phù hợp</td>
               </tr>
             )}
           </tbody>

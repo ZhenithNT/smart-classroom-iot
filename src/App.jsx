@@ -58,7 +58,6 @@ export default function App() {
       device: device.name,
       action: device.status ? 'Tắt' : 'Bật',
       status: 'Đang xử lý',
-      sendTime: getDateTime(),
       respTime: 'Đang chờ',
     }
     setHistory((old) => [newRecord, ...old])
