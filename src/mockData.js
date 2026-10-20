@@ -11,7 +11,7 @@ export const INITIAL_SENSOR_REALTIME = {
   humid: 80,   // %
 }
 
-// 6 mốc thời gian ban đầu hiển thị trên biểu đồ giống PDF
+// 6 mốc thời gian ban đầu hiển thị trên biểu đồ 
 export const INITIAL_CHART_POINTS = [
   { time: '10:00:00', light: 950, temp: 26, humid: 75 },
   { time: '10:05:00', light: 1020, temp: 27, humid: 78 },
@@ -21,7 +21,7 @@ export const INITIAL_CHART_POINTS = [
   { time: '10:25:00', light: 1000, temp: 28, humid: 80 },
 ]
 
-// 50 bản ghi dữ liệu cảm biến mẫu khớp chuẩn PDF
+// 50 bản ghi dữ liệu cảm biến mẫu
 export const MOCK_SENSOR_DATA = [
   { id: '#S1', type: 'Ánh sáng', value: '1000 lux', rawValue: 1000, time: '15/08/2026 08:30:00' },
   { id: '#S2', type: 'Nhiệt độ', value: '28°C', rawValue: 28, time: '15/08/2026 08:30:00' },
@@ -62,7 +62,7 @@ export const MOCK_SENSOR_DATA = [
   }),
 ]
 
-// 30 bản ghi lịch sử điều khiển khớp chuẩn
+// 30 bản ghi lịch sử điều khiển 
 export const MOCK_ACTION_HISTORY = [
   { id: 1, device: 'Đèn', action: 'Bật', status: 'Thành công', sendTime: '16/08/2026 08:30:15', respTime: '16/08/2026 08:30:18' },
   { id: 2, device: 'Quạt', action: 'Tắt', status: 'Thành công', sendTime: '16/08/2026 09:15:42', respTime: '16/08/2026 09:15:45' },

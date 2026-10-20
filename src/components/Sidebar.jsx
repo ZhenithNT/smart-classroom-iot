@@ -1,20 +1,14 @@
-import React from 'react'
-import {
-  IconLogo,
-  IconDashboard,
-  IconSensor,
-  IconHistory,
-  IconProfile,
-} from './Icons'
+import { IconLogo, IconDashboard, IconSensor, IconHistory, IconProfile } from './Icons'
+
+// Danh sách menu: thêm / bớt trang chỉ cần sửa ở đây
+const MENU = [
+  { id: 'dashboard', label: 'Dashboard', Icon: IconDashboard },
+  { id: 'sensor', label: 'Data Sensor', Icon: IconSensor },
+  { id: 'history', label: 'History Action', Icon: IconHistory },
+  { id: 'profile', label: 'Profile', Icon: IconProfile },
+]
 
 export default function Sidebar({ currentTab, setTab }) {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: IconDashboard },
-    { id: 'sensor', label: 'Data Sensor', icon: IconSensor },
-    { id: 'history', label: 'History Action', icon: IconHistory },
-    { id: 'profile', label: 'Profile', icon: IconProfile },
-  ]
-
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -23,20 +17,16 @@ export default function Sidebar({ currentTab, setTab }) {
       </div>
 
       <nav className="sidebar-menu">
-        {menuItems.map((item) => {
-          const Icon = item.icon
-          const active = currentTab === item.id
-          return (
-            <button
-              key={item.id}
-              className={`menu-item ${active ? 'active' : ''}`}
-              onClick={() => setTab(item.id)}
-            >
-              <Icon />
-              <span>{item.label}</span>
-            </button>
-          )
-        })}
+        {MENU.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            className={'menu-item ' + (currentTab === id ? 'active' : '')}
+            onClick={() => setTab(id)}
+          >
+            <Icon />
+            <span>{label}</span>
+          </button>
+        ))}
       </nav>
     </aside>
   )

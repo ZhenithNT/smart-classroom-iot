@@ -1,4 +1,3 @@
-import React from 'react'
 import { Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS,
@@ -6,364 +5,174 @@ import {
   LinearScale,
   PointElement,
   LineElement,
-  Title,
   Tooltip,
-  Legend,
 } from 'chart.js'
 import { IconSun, IconTemp, IconHumid, IconBulb, IconFan } from './Icons'
 
-/*
- ============================================================================
-  GHI CHÚ DÀNH CHO LẬP TRÌNH VIÊN C / C++:
- ----------------------------------------------------------------------------
-  1. "Props" trong Dashboard({ sensorRealtime, chartDataPoints, ... }):
-     Tương đương việc truyền một struct tham số vào hàm:
-     void RenderDashboard(const DashboardProps& props);
-  2. "Tách hàm xử lý logic (Helper Functions)":
-     Thay vì viết các toán tử ba ngôi (ternary operator ? :) lồng nhau phức tạp
-     ngay trong giao diện, ta tách thành các hàm thuần túy (pure functions)
-     sử dụng if / else rõ ràng, giống hệt hàm trong C++.
-  3. "Chart.js Config Object":
-     Là một cấu trúc dữ liệu phân cấp (struct lồng nhau) mô tả cách thư viện đồ họa
-     vẽ các điểm ảnh (canvas rendering), thiết lập 2 trục Y độc lập (trục trái cho °C/%
-     và trục phải cho Lux).
- ============================================================================
-*/
+// Bật các "bộ phận" của biểu đồ mà mình dùng
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip)
 
-// Đăng ký các module vẽ đồ thị với thư viện Chart.js
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-)
+// ----- THẺ CẢM BIẾN (Ánh sáng / Nhiệt độ / Độ ẩm) -----
+function SensorCard({ label, value, unit, icon }) {
+  return (
+    <div className="metric-card">
+      <div className="metric-header">
+        <div className="metric-title-group">
+          {icon}
+          <span className="metric-label">{label}</span>
+        </div>
+      </div>
+      <div className="metric-body">
+        <span className="metric-value">{value}</span>
+        <span className="metric-unit">{unit}</span>
+      </div>
+      <div className="metric-footer">
+        <span className="badge-realtime">Realtime</span>
+      </div>
+    </div>
+  )
+}
 
-// ==========================================
-// CÁC HÀM PHỤ TRỢ (HELPER FUNCTIONS)
-// ==========================================
+// ----- MỘT HÀNG ĐIỀU KHIỂN THIẾT BỊ (Đèn hoặc Quạt) -----
+function DeviceItem({ device, isPending, onToggle }) {
+  const isBulb = device.id === 1 // id 1 là đèn, còn lại là quạt
+  const boxClass = (isBulb ? 'bulb-' : 'fan-') + (device.status ? 'on' : 'off')
 
-/**
- * Xác định lớp CSS cho khung icon của thiết bị
- * @param {object} device Đối tượng thiết bị (id, name, status)
- * @returns {string} Tên lớp CSS tương ứng
- */
-function getDeviceBoxClass(device) {
-  const isBulb = (device.id === 1) // id = 1 là Đèn, id = 2 là Quạt
+  let statusText = device.status ? 'Đang bật' : 'Đang tắt'
+  if (isPending) statusText = 'Đang xử lý…'
 
-  if (isBulb) {
-    if (device.status === true) {
-      return 'device-icon-box bulb-on' // Đèn bật: phát sáng vàng
-    } else {
-      return 'device-icon-box bulb-off' // Đèn tắt: xám
-    }
-  } else {
-    // Là thiết bị Quạt
-    if (device.status === true) {
-      return 'device-icon-box fan-on' // Quạt bật: xanh dương + quay tròn
-    } else {
-      return 'device-icon-box fan-off' // Quạt tắt: đứng yên
-    }
+  return (
+    <div className="device-item">
+      <div className="device-left">
+        <div className={'device-icon-box ' + boxClass}>
+          {isBulb ? <IconBulb on={device.status} /> : <IconFan on={device.status} />}
+        </div>
+        <div className="device-meta">
+          <span className="device-name">{device.name}</span>
+          <span className={'device-status ' + (isPending ? 'status-processing' : '')}>{statusText}</span>
+        </div>
+      </div>
+
+      <label className={'switch ' + (isPending ? 'disabled' : '')}>
+        <input
+          type="checkbox"
+          checked={device.status}
+          disabled={isPending}
+          onChange={() => onToggle(device.id)}
+        />
+        <span className="slider round"></span>
+      </label>
+    </div>
+  )
+}
+
+// ----- CẤU HÌNH BIỂU ĐỒ -----
+const COLORS = { light: '#F59E0B', temp: '#EF4444', humid: '#3B82F6' }
+const tickStyle = { color: '#6B7280', font: { size: 12 } }
+const axisTitle = (text) => ({
+  display: true,
+  text,
+  color: '#4B5563',
+  font: { size: 12.5, weight: 600 },
+})
+
+const chartOptions = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false }, // tự vẽ chú thích bên dưới nên tắt cái mặc định
+    tooltip: { mode: 'index', intersect: false },
+  },
+  scales: {
+    // Trục ngang: thời gian
+    x: { grid: { color: '#F3F4F6' }, ticks: tickStyle },
+    // Trục dọc bên trái: nhiệt độ + độ ẩm (0 - 100)
+    yTempHumid: {
+      type: 'linear',
+      position: 'left',
+      min: 0,
+      max: 100,
+      title: axisTitle('°C / %'),
+      grid: { color: '#F3F4F6' },
+      ticks: { ...tickStyle, stepSize: 50 },
+    },
+    // Trục dọc bên phải: ánh sáng (0 - 1200 lux)
+    yLux: {
+      type: 'linear',
+      position: 'right',
+      min: 0,
+      max: 1200,
+      title: axisTitle('lux'),
+      grid: { drawOnChartArea: false },
+      ticks: { ...tickStyle, stepSize: 600 },
+    },
+  },
+}
+
+// Tạo 1 đường trên biểu đồ: tên, lấy cột nào trong dữ liệu, màu, dùng trục nào
+function makeLine(points, label, key, axis) {
+  return {
+    label,
+    data: points.map((p) => p[key]),
+    borderColor: COLORS[key],
+    backgroundColor: COLORS[key],
+    yAxisID: axis,
+    tension: 0.35,
+    borderWidth: 2,
+    pointRadius: 3,
+    pointHoverRadius: 5,
   }
 }
 
-/**
- * Xác định chuỗi văn bản trạng thái hiển thị của thiết bị
- * @param {object} device Đối tượng thiết bị
- * @param {boolean} isPending Cờ báo thiết bị có đang chờ phản hồi mạng hay không
- * @returns {string} Nhãn hiển thị ('Đang xử lý…' | 'Đang bật' | 'Đang tắt')
- */
-function getDeviceStatusText(device, isPending) {
-  // Ưu tiên 1: Đang trong quá trình trễ 1.2s chờ phản hồi
-  if (isPending === true) {
-    return 'Đang xử lý…'
-  }
-
-  // Ưu tiên 2: Trạng thái hiện tại của thiết bị
-  if (device.status === true) {
-    return 'Đang bật'
-  } else {
-    return 'Đang tắt'
-  }
-}
-
-// ==========================================
-// THÀNH PHẦN DASHBOARD (DASHBOARD COMPONENT)
-// ==========================================
-export default function Dashboard({
-  sensorRealtime,
-  chartDataPoints,
-  devices,
-  toggleDevice,
-  pendingDevices = {},
-}) {
-  // --------------------------------------------------------------------------
-  // BƯỚC 1: TRÍCH XUẤT DỮ LIỆU ĐỒ THỊ (Tương đương duyệt mảng vector trong C++)
-  // --------------------------------------------------------------------------
-  const labelsList = []
-  const lightDataList = []
-  const tempDataList = []
-  const humidDataList = []
-
-  for (let i = 0; i < chartDataPoints.length; i++) {
-    const point = chartDataPoints[i]
-    labelsList.push(point.time)
-    lightDataList.push(point.light)
-    tempDataList.push(point.temp)
-    humidDataList.push(point.humid)
-  }
-
-  // --------------------------------------------------------------------------
-  // BƯỚC 2: CẤU HÌNH DỮ LIỆU VẼ ĐỒ THỊ (3 đường: Ánh sáng, Nhiệt độ, Độ ẩm)
-  // --------------------------------------------------------------------------
+// ----- TRANG DASHBOARD -----
+export default function Dashboard({ sensor, chartPoints, devices, pending, toggleDevice }) {
   const chartData = {
-    labels: labelsList,
+    labels: chartPoints.map((p) => p.time),
     datasets: [
-      {
-        label: 'Ánh sáng',
-        data: lightDataList,
-        borderColor: '#F59E0B',
-        backgroundColor: '#F59E0B',
-        yAxisID: 'yLux', // Gắn vào trục Y bên phải (đơn vị lux, 0 - 1200)
-        tension: 0.35,
-        borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
-      {
-        label: 'Nhiệt độ',
-        data: tempDataList,
-        borderColor: '#EF4444',
-        backgroundColor: '#EF4444',
-        yAxisID: 'yTempHumid', // Gắn vào trục Y bên trái (đơn vị °C / %, 0 - 100)
-        tension: 0.35,
-        borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
-      {
-        label: 'Độ ẩm',
-        data: humidDataList,
-        borderColor: '#3B82F6',
-        backgroundColor: '#3B82F6',
-        yAxisID: 'yTempHumid', // Dùng chung trục Y bên trái với Nhiệt độ
-        tension: 0.35,
-        borderWidth: 2,
-        pointRadius: 3,
-        pointHoverRadius: 5,
-      },
+      makeLine(chartPoints, 'Ánh sáng', 'light', 'yLux'),
+      makeLine(chartPoints, 'Nhiệt độ', 'temp', 'yTempHumid'),
+      makeLine(chartPoints, 'Độ ẩm', 'humid', 'yTempHumid'),
     ],
   }
 
-  // --------------------------------------------------------------------------
-  // BƯỚC 3: CẤU HÌNH TÙY CHỌN ĐỒ THỊ (Đồ thị 2 trục Y theo yêu cầu báo cáo)
-  // --------------------------------------------------------------------------
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false, // Ẩn legend mặc định vì đã có thanh legend tùy biến phía trên
-      },
-      tooltip: {
-        mode: 'index',
-        intersect: false,
-      },
-    },
-    scales: {
-      // Trục hoành X: Thời gian đo (HH:mm:ss)
-      x: {
-        grid: {
-          color: '#F3F4F6',
-        },
-        ticks: {
-          color: '#6B7280',
-          font: { size: 12 },
-        },
-      },
-      // Trục tung Y bên trái: Dành cho Nhiệt độ (°C) và Độ ẩm (%)
-      yTempHumid: {
-        type: 'linear',
-        position: 'left',
-        min: 0,
-        max: 100,
-        title: {
-          display: true,
-          text: '°C / %',
-          color: '#4B5563',
-          font: { size: 12.5, weight: 600 },
-        },
-        grid: {
-          color: '#F3F4F6',
-        },
-        ticks: {
-          color: '#6B7280',
-          stepSize: 50,
-          font: { size: 12 },
-        },
-      },
-      // Trục tung Y bên phải: Dành cho Ánh sáng (lux)
-      yLux: {
-        type: 'linear',
-        position: 'right',
-        min: 0,
-        max: 1200,
-        title: {
-          display: true,
-          text: 'lux',
-          color: '#4B5563',
-          font: { size: 12.5, weight: 600 },
-        },
-        grid: {
-          drawOnChartArea: false, // Tránh vẽ đè lưới lên trục bên trái
-        },
-        ticks: {
-          color: '#6B7280',
-          stepSize: 600,
-          font: { size: 12 },
-        },
-      },
-    },
-  }
-
-  // --------------------------------------------------------------------------
-  // BƯỚC 4: RENDER GIAO DIỆN HTML/JSX
-  // --------------------------------------------------------------------------
   return (
     <div className="page-content">
-      {/* Tiêu đề trang */}
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
         <p className="page-subtitle">Gửi dữ liệu mỗi 2 giây</p>
       </div>
 
-      {/* Hàng 4 Card: 3 Cảm biến + 1 Bảng điều khiển thiết bị */}
+      {/* Hàng trên: 3 thẻ cảm biến + 1 thẻ điều khiển */}
       <div className="dashboard-grid">
-        {/* Card 1: Ánh sáng */}
-        <div className="metric-card">
-          <div className="metric-header">
-            <div className="metric-title-group">
-              <IconSun />
-              <span className="metric-label">Ánh sáng</span>
-            </div>
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{sensorRealtime.light}</span>
-            <span className="metric-unit">lux</span>
-          </div>
-          <div className="metric-footer">
-            <span className="badge-realtime">Realtime</span>
-          </div>
-        </div>
+        <SensorCard label="Ánh sáng" value={sensor.light} unit="lux" icon={<IconSun />} />
+        <SensorCard label="Nhiệt độ" value={sensor.temp} unit="°C" icon={<IconTemp />} />
+        <SensorCard label="Độ ẩm" value={sensor.humid} unit="%" icon={<IconHumid />} />
 
-        {/* Card 2: Nhiệt độ */}
-        <div className="metric-card">
-          <div className="metric-header">
-            <div className="metric-title-group">
-              <IconTemp />
-              <span className="metric-label">Nhiệt độ</span>
-            </div>
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{sensorRealtime.temp}</span>
-            <span className="metric-unit">°C</span>
-          </div>
-          <div className="metric-footer">
-            <span className="badge-realtime">Realtime</span>
-          </div>
-        </div>
-
-        {/* Card 3: Độ ẩm */}
-        <div className="metric-card">
-          <div className="metric-header">
-            <div className="metric-title-group">
-              <IconHumid />
-              <span className="metric-label">Độ ẩm</span>
-            </div>
-          </div>
-          <div className="metric-body">
-            <span className="metric-value">{sensorRealtime.humid}</span>
-            <span className="metric-unit">%</span>
-          </div>
-          <div className="metric-footer">
-            <span className="badge-realtime">Realtime</span>
-          </div>
-        </div>
-
-        {/* Card 4: Bảng điều khiển thiết bị (Đèn, Quạt) */}
         <div className="device-control-card">
           <div className="control-title">Điều khiển thiết bị</div>
           <div className="device-list">
-            {devices.map(function(dev) {
-              const isBulb = (dev.id === 1)
-              const isPending = Boolean(pendingDevices[dev.id])
-              const DevIcon = isBulb ? IconBulb : IconFan
-              const boxClass = getDeviceBoxClass(dev)
-              const statusText = getDeviceStatusText(dev, isPending)
-
-              // Xác định lớp CSS cho nhãn trạng thái và nút gạt
-              let statusClass = 'device-status'
-              if (isPending) {
-                statusClass += ' status-processing'
-              }
-
-              let switchClass = 'switch'
-              if (isPending) {
-                switchClass += ' disabled'
-              }
-
-              return (
-                <div key={dev.id} className="device-item">
-                  <div className="device-left">
-                    {/* Hộp icon: phát sáng khi đèn bật, quay khi quạt bật */}
-                    <div className={boxClass}>
-                      <DevIcon on={dev.status} />
-                    </div>
-
-                    <div className="device-meta">
-                      <span className="device-name">{dev.name}</span>
-                      <span className={statusClass}>
-                        {statusText}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Nút gạt ON/OFF */}
-                  <label className={switchClass}>
-                    <input
-                      type="checkbox"
-                      checked={dev.status}
-                      disabled={isPending}
-                      onChange={function() {
-                        toggleDevice(dev.id)
-                      }}
-                    />
-                    <span className="slider round"></span>
-                  </label>
-                </div>
-              )
-            })}
+            {devices.map((d) => (
+              <DeviceItem key={d.id} device={d} isPending={pending[d.id]} onToggle={toggleDevice} />
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Card Biểu đồ dữ liệu cảm biến */}
+      {/* Biểu đồ */}
       <div className="chart-card">
         <div className="chart-header">
           <h2 className="chart-title">Biểu đồ dữ liệu cảm biến</h2>
           <div className="chart-legend">
             <span className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#F59E0B' }} />
+              <span className="legend-dot" style={{ backgroundColor: COLORS.light }} />
               Ánh sáng
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#EF4444' }} />
+              <span className="legend-dot" style={{ backgroundColor: COLORS.temp }} />
               Nhiệt độ
             </span>
             <span className="legend-item">
-              <span className="legend-dot" style={{ backgroundColor: '#3B82F6' }} />
+              <span className="legend-dot" style={{ backgroundColor: COLORS.humid }} />
               Độ ẩm
             </span>
           </div>
